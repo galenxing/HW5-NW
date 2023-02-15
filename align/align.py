@@ -128,12 +128,49 @@ class NeedlemanWunsch:
         
         # TODO: Initialize matrix private attributes for use in alignment
         # create matrices for alignment scores, gaps, and backtracing
-        pass
-
+        seq1_len = len(seqA)
+        seq2_len = len(seqB)
         
-        # TODO: Implement global alignment here
-        pass      		
-        		    
+        # alignment matrix
+        am = np.zeros((seq1_len+1, seq2_len+1))
+        
+        gap_penalty = self.gap_open
+        extend_penalty = self.gap_extend
+        
+        # initialize gap penalities
+        am[1:,0] = ((np.arange(seq1_len)+1) * extend_penalty) + gap_penalty
+        am[0,1:] = ((np.arange(seq2_len)+1) * extend_penalty) + gap_penalty
+
+        # to keep track of gaps
+        self._gapA_matrix = np.full((seq1_len+1, seq2_len+1),False) 
+        self._gapB_matrix = np.full((seq1_len+1, seq2_len+1),False)
+
+        # alignment
+        for i in range(1,am.shape[0]):
+            for j in range(1,am.shape[1]):
+                c1 = self._seqA[i-1]
+                c2 = self._seqB[j-1]
+                
+                # if its a match get from similarity matrix
+                match = am[i-1, j-1] + self.sub_dict[(c1,c2)]
+                
+                # else add gap to i or j
+                delete = am[i-1,j] + extend_penalty if self._gapA_matrix[i-1,j] else am[i-1,j] + gap_penalty + extend_penalty
+                insert = am[i,j-1] + extend_penalty if self._gapB_matrix[i,j-1] else am[i,j-1] + gap_penalty + extend_penalty
+
+                max_act = np.argmax([match,delete,insert])
+                max_val = max(match,delete,insert)
+                
+                # keep track of gaps
+                if max_act == 1:
+                    self._gapA_matrix[i,j] = True
+                elif max_act == 2:
+                    self._gapB_matrix[i,j] = True
+
+                am[i,j] = max_val
+        
+        self._align_matrix = am
+        
         return self._backtrace()
 
     def _backtrace(self) -> Tuple[float, str, str]:
@@ -144,14 +181,44 @@ class NeedlemanWunsch:
         align function in order to return the final alignment score and strings.
         
         Parameters:
-        	None
+        None
         
         Returns:
-         	(alignment score, seqA alignment, seqB alignment) : Tuple[float, str, str]
-         		the score and corresponding strings for the alignment of seqA and seqB
+        (alignment score, seqA alignment, seqB alignment) : Tuple[float, str, str]
+        the score and corresponding strings for the alignment of seqA and seqB
         """
-        pass
+        i = len(self._seqA)
+        j = len(self._seqB)
+        am = self._align_matrix
 
+        self.alignment_score = am[i,j]
+        gap_penalty = self.gap_open
+        extend_penalty = self.gap_extend
+        
+        # backtrace from the end
+        while (i>0 or j>0):
+            c1 = self._seqA[i-1]
+            c2 = self._seqB[j-1]
+            
+            # if its a match
+            if i>0 and j>0 and (am[i,j] == am[i-1, j-1] + self.sub_dict[(c1,c2)]):
+                self.seqA_align = c1 + self.seqA_align
+                self.seqB_align = c2 + self.seqB_align
+                i-=1
+                j-=1
+            
+            # if theres a gap in i
+            elif i>0 and ((am[i,j] == am[i-1, j] + gap_penalty + extend_penalty) or (am[i,j] == am[i-1, j] + extend_penalty)):
+                self.seqA_align = c1 + self.seqA_align
+                self.seqB_align = '-' + self.seqB_align
+                i-=1
+                
+            # if theres a gap in j
+            else:
+                self.seqA_align = '-' + self.seqA_align
+                self.seqB_align = c2 + self.seqB_align
+                j-=1
+                
         return (self.alignment_score, self.seqA_align, self.seqB_align)
 
 
