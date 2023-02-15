@@ -1,3 +1,5 @@
+![BuildStatus](https://github.com/galenxing/HW5-NW/actions/workflows/ci.yml/badge.svg?event=push)
+
 # Project 4
 Needleman Wunsch Algorithm
 
